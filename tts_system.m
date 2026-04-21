@@ -1,7 +1,7 @@
 
 clear
 clc
-% close all
+close all
 
 %%% Generate the system dynamics for the linear tape transport system
 %   dynamics
@@ -10,29 +10,36 @@ clc
 % i -- takeup/machine reel
 % o -- supply/file reel
 
+% trying to make these parameters as similar to those found in Cherubini
+% 2013 as possible
+
 % constant parameters
-v_0 = 3.1; % [m/s]
-T_0 = 1 ; % [N]
+v_0 = 4.1; % [m/s]
+T_0 = 0.8 ; % [N]
+
+
 w = 0.5 * 25.4 * 1e-3; % [m]
-p_s = 2.8588 * 1e-3; % [m]
+% p_s = 2.8588 * 1e-3; % [m]
 z = 6.4e-6; % [m]
 
 % constant parameters that depend on the above constant parameters
-K_T_0 = 195; % [N/m] --> depends on T_0 and v_0
+K_T_0 = 150; % [N/m] --> depends on T_0 and v_0
 
 % parameters that are guesses (https://en.wikipedia.org/wiki/Linear_Tape-Open)
 L_0 = 0.2; % [m]
 % n = 1; % # of unsupported turns [-]
 R_f = -1; % [m] -- WILL BE OVERWRITTEN, DEPENDS ON LENGTH OF TAPE
-R_0 = 0.022; % [m]
-L_tot = 1e3; % [m]
+R_0 = 0.03; % [m]
+L_tot = 710; % [m]
 rho = 1350; % assuming PET material [kg/m3]
+
+% not sure about these
 E = 2.8 * 1e9; % [Pa] = [N/m^2]
-J_i_motor = 0.0001; % [Nm]
-J_o_motor = 0.0001; % [Nm]
-K_i = 0.02;
+J_i_motor = 0.0001; % [Kg m^2]
+J_o_motor = 0.0001; % [Kg m^2]
+K_i = 0.02; % from Cheribuni 2018
 K_o = 0.02;
-D_T_0 = 0.1; % [N s/m] p. 218
+D_T_0 = 1; % [N s/m] 
 
 % assume forward tape motion
 alpha = 0;
@@ -58,7 +65,7 @@ f_D_T = @(K_T) D_T_0 * K_T / K_T_0;
 R_f = f_R_i(L_tot);
 
 %%% choose a LPOS for which to define the dynamics
-l = 100;
+l = L_tot;
 
 R_i = f_R_i(l);
 R_o = f_R_o(l);
@@ -89,25 +96,16 @@ C = [ 0   , 1     , 0    , 0    ;
       0   , alpha , 0    , beta ;
       K_T , D_T   , -K_T , -D_T ];
 
-Csmall = [ 0   , 1     , 0    , 0    ;
-      0   , 0     , 0    , 1    ;
-      K_T , D_T   , -K_T , -D_T ];
-
 sssys = ss(A,B,C,zeros(4,2));
 
 Hs = tf(sssys);
-H_i_T = minreal(tf( Hs.Numerator{2,2}, Hs.Denominator{2,2} ));
+Hs.InputName = { 'u_i', 'u_o' };
+Hs.OutputName = { 'v_Hi', 'v_Ho', 'v', 'T' };
 
-pzmap(H_i_T)
-figure, bp = bodeplot( H_i_T );
-bp.FrequencyUnit = "Hz";
-xlim( [1e-1 1e2])
-ax = findall(gcf, 'type', 'axes');
-% magnitude is usually the second one
-ylim(ax(2), [-40 20])
-ylim(ax(1), [-300 300])
+opts = bodeoptions;
+opts.PhaseWrapping = 'on'; % Enable wrapping
 
-figure, bp = bodeplot( Hs );
+figure, bp = bodeplot( Hs, opts );
 bp.FrequencyUnit = "Hz";
 xlim( [1e-1 1e2])
 
@@ -118,7 +116,61 @@ end
 for ii = 2:2:length(ax)
     ylim(ax(ii), [-40 20])
 end
-% ax = findall(gcf, 'type', 'axes');
-% % magnitude is usually the second one
-% ylim(ax(2), [-40 20])
-% ylim(ax(1), [-300 300])
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+% create transfer function for alternative outputs
+
+Csmall = [ 0   , 1     , 0    , 0    ;
+           0   , 0     , 0    , 1    ;
+           K_T , D_T   , -K_T , -D_T ];
+
+% Csmall = [ 1   , 0     , 0    , 0    ;
+%            0   , 0     , 0    , 1    ;
+%            K_T , D_T   , -K_T , -D_T ];
+
+sssys = ss(A,B,Csmall,zeros(3,2));
+
+Hs = tf(sssys);
+Hs.InputName = { 'u_i', 'u_o' };
+Hs.OutputName = { 'v_Hi', 'v_Ho', 'T' };
+
+opts = bodeoptions;
+opts.PhaseWrapping = 'on'; % Enable wrapping
+
+figure, bp = bodeplot( Hs, opts );
+bp.FrequencyUnit = "Hz";
+xlim( [1e-1 1e2])
+
+ax = findall(gcf, 'type', 'axes');
+for ii = 1:2:length(ax)-1
+    ylim(ax(ii), [-300 300])
+end
+for ii = 2:2:length(ax)
+    ylim(ax(ii), [-40 20])
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+% open loop TF for feedback gains
+g_v = 40;
+K_v_i = g_v*J_i/R_i/K_i;
+K_v_o = g_v*J_o/R_o/K_o;
+
+B = [ 0                     , 0                     ;
+      R_i*K_i / J_i * K_v_i , 0                     ;
+      0                     , 0                     ;
+      0                     , R_o*K_o / J_o * K_v_o ];
+
+sssys = ss(A,B,Csmall,zeros(3,2));
+Hs = tf(sssys);
+Hs.InputName = { 'u_i', 'u_o' };
+Hs.OutputName = { 'v_Hi', 'v_Ho', 'T' };
+
+figure, rlocus(Hs(1,1))
+figure, rlocus(Hs(2,1))
+figure, rlocus(Hs(1,2))
+figure, rlocus(Hs(2,2))
+
+% save ctrl data
+save tts_system.mat
