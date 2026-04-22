@@ -108,6 +108,7 @@ for i = 1:2
         plot(real(p), imag(p), 'rx', 'MarkerSize', 10, 'LineWidth', 2)
         
         title(sprintf('H(%d,%d)', i, j))
+        axis([-30 20 -75 75])
         % grid on
     end
 end

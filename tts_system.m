@@ -51,13 +51,24 @@ beta_o = 0;
 mu = 0;
 
 % time/LPOS varying parameters
-f_R_i = @(l) sqrt( R_0^2 + z/pi * l );
-f_R_o = @(l) sqrt( R_0^2 + z/pi * (L_tot - l) );
-f_J_i = @(R_i) J_i_motor + pi*w*rho * ( R_i^4 - R_0^4 ) / 2;
-f_J_o = @(R_o) J_o_motor + pi*w*rho * ( R_o^4 - R_0^4 ) / 2;
+% f_R_i = @(l) sqrt( R_0^2 + z/pi * l );
+% f_R_o = @(l) sqrt( R_0^2 + z/pi * (L_tot - l) );
+% f_J_i = @(R_i) J_i_motor + pi*w*rho * ( R_i^4 - R_0^4 ) / 2;
+% f_J_o = @(R_o) J_o_motor + pi*w*rho * ( R_o^4 - R_0^4 ) / 2;
+% 
+% f_K_T = @(R_i) E*w*z ./ ( L_0 + R_i/R_0*( E*w*z/K_T_0 - L_0 ) );
+% f_D_T = @(K_T) D_T_0 * K_T / K_T_0;
 
-f_K_T = @(R_i) E*w*z ./ ( L_0 + R_i/R_0*( E*w*z/K_T_0 - L_0 ) );
-f_D_T = @(K_T) D_T_0 * K_T / K_T_0;
+f_R_i = @(l) sqrt( R_0.^2 + (z./pi) .* l );
+f_R_o = @(l) sqrt( R_0.^2 + (z./pi) .* (L_tot - l) );
+
+f_J_i = @(R_i) J_i_motor + (pi*w*rho) .* ( R_i.^4 - R_0.^4 ) ./ 2;
+f_J_o = @(R_o) J_o_motor + (pi*w*rho) .* ( R_o.^4 - R_0.^4 ) ./ 2;
+
+f_K_T = @(R_i) (E*w*z) ./ ( L_0 + (R_i./R_0) .* ( (E*w*z./K_T_0) - L_0 ) );
+
+f_D_T = @(K_T) D_T_0 .* (K_T ./ K_T_0);
+
 % NOTE: do NOT need tension estimator, and can assume what comes out of the
 % SS filter is "ground truth"
 
@@ -102,75 +113,75 @@ Hs = tf(sssys);
 Hs.InputName = { 'u_i', 'u_o' };
 Hs.OutputName = { 'v_Hi', 'v_Ho', 'v', 'T' };
 
-opts = bodeoptions;
-opts.PhaseWrapping = 'on'; % Enable wrapping
-
-figure, bp = bodeplot( Hs, opts );
-bp.FrequencyUnit = "Hz";
-xlim( [1e-1 1e2])
-
-ax = findall(gcf, 'type', 'axes');
-for ii = 1:2:length(ax)-1
-    ylim(ax(ii), [-300 300])
-end
-for ii = 2:2:length(ax)
-    ylim(ax(ii), [-40 20])
-end
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%
-% create transfer function for alternative outputs
-
-Csmall = [ 0   , 1     , 0    , 0    ;
-           0   , 0     , 0    , 1    ;
-           K_T , D_T   , -K_T , -D_T ];
-
-% Csmall = [ 1   , 0     , 0    , 0    ;
+% opts = bodeoptions;
+% opts.PhaseWrapping = 'on'; % Enable wrapping
+% 
+% figure, bp = bodeplot( Hs, opts );
+% bp.FrequencyUnit = "Hz";
+% xlim( [1e-1 1e2])
+% 
+% ax = findall(gcf, 'type', 'axes');
+% for ii = 1:2:length(ax)-1
+%     ylim(ax(ii), [-300 300])
+% end
+% for ii = 2:2:length(ax)
+%     ylim(ax(ii), [-40 20])
+% end
+% 
+% 
+% 
+% %%%%%%%%%%%%%%%%%%%%%%%%%%
+% % create transfer function for alternative outputs
+% 
+% Csmall = [ 0   , 1     , 0    , 0    ;
 %            0   , 0     , 0    , 1    ;
 %            K_T , D_T   , -K_T , -D_T ];
-
-sssys = ss(A,B,Csmall,zeros(3,2));
-
-Hs = tf(sssys);
-Hs.InputName = { 'u_i', 'u_o' };
-Hs.OutputName = { 'v_Hi', 'v_Ho', 'T' };
-
-opts = bodeoptions;
-opts.PhaseWrapping = 'on'; % Enable wrapping
-
-figure, bp = bodeplot( Hs, opts );
-bp.FrequencyUnit = "Hz";
-xlim( [1e-1 1e2])
-
-ax = findall(gcf, 'type', 'axes');
-for ii = 1:2:length(ax)-1
-    ylim(ax(ii), [-300 300])
-end
-for ii = 2:2:length(ax)
-    ylim(ax(ii), [-40 20])
-end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%
-% open loop TF for feedback gains
-g_v = 40;
-K_v_i = g_v*J_i/R_i/K_i;
-K_v_o = g_v*J_o/R_o/K_o;
-
-B = [ 0                     , 0                     ;
-      R_i*K_i / J_i * K_v_i , 0                     ;
-      0                     , 0                     ;
-      0                     , R_o*K_o / J_o * K_v_o ];
-
-sssys = ss(A,B,Csmall,zeros(3,2));
-Hs = tf(sssys);
-Hs.InputName = { 'u_i', 'u_o' };
-Hs.OutputName = { 'v_Hi', 'v_Ho', 'T' };
-
-figure, rlocus(Hs(1,1))
-figure, rlocus(Hs(2,1))
-figure, rlocus(Hs(1,2))
-figure, rlocus(Hs(2,2))
+% 
+% % Csmall = [ 1   , 0     , 0    , 0    ;
+% %            0   , 0     , 0    , 1    ;
+% %            K_T , D_T   , -K_T , -D_T ];
+% 
+% sssys = ss(A,B,Csmall,zeros(3,2));
+% 
+% Hs = tf(sssys);
+% Hs.InputName = { 'u_i', 'u_o' };
+% Hs.OutputName = { 'v_Hi', 'v_Ho', 'T' };
+% 
+% opts = bodeoptions;
+% opts.PhaseWrapping = 'on'; % Enable wrapping
+% 
+% figure, bp = bodeplot( Hs, opts );
+% bp.FrequencyUnit = "Hz";
+% xlim( [1e-1 1e2])
+% 
+% ax = findall(gcf, 'type', 'axes');
+% for ii = 1:2:length(ax)-1
+%     ylim(ax(ii), [-300 300])
+% end
+% for ii = 2:2:length(ax)
+%     ylim(ax(ii), [-40 20])
+% end
+% 
+% %%%%%%%%%%%%%%%%%%%%%%%%%%
+% % open loop TF for feedback gains
+% g_v = 40;
+% K_v_i = g_v*J_i/R_i/K_i;
+% K_v_o = g_v*J_o/R_o/K_o;
+% 
+% B = [ 0                     , 0                     ;
+%       R_i*K_i / J_i * K_v_i , 0                     ;
+%       0                     , 0                     ;
+%       0                     , R_o*K_o / J_o * K_v_o ];
+% 
+% sssys = ss(A,B,Csmall,zeros(3,2));
+% Hs = tf(sssys);
+% Hs.InputName = { 'u_i', 'u_o' };
+% Hs.OutputName = { 'v_Hi', 'v_Ho', 'T' };
+% 
+% figure, rlocus(Hs(1,1))
+% figure, rlocus(Hs(2,1))
+% figure, rlocus(Hs(1,2))
+% figure, rlocus(Hs(2,2))
 
 % save ctrl data
 save tts_system.mat
