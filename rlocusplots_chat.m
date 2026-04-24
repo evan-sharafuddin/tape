@@ -98,70 +98,62 @@ for f = 1:2
     H_all{f} = zpk(H_tf);
 end
 
+
 % --- Plot ---
 figure
 
 vara = ["u_i","u_o"];
 varb = ["v_i","v_o", "T"];
 
+t = tiledlayout(2,2);
+t.TileSpacing = 'compact';
+t.Padding = 'compact';
+
 for i = 1:2
     for j = 1:2
-        subplot(2,2,(i-1)*2 + j)
+        nexttile
 
         G1 = H_all{1}(i,j); % BOT
         G2 = H_all{2}(i,j); % EOT
 
-        % THIS is the correct multi-system call
-        % h = rlocusplot(G1, 'r');
-        h=rlocusplot(G1, 'r', G2, 'b');
+        h = rlocusplot(G1,'r', G2,'b');
 
-        % styling
         setoptions(h, ...
-            'XLim', [-20 10], ...
+            'XLim', [-20 5], ...
             'YLim', [-75 75], ...
             'Grid','off')
 
-        % manually set colors
-        % ax = gca;
-        % lines = findall(ax,'Type','Line');
-        % set(lines(1:end/2),'Color','b') % BOT
-        % set(lines(end/2:end),'Color','r') % EOT
-
         hold on
-
-        % mark K = 40
-        if F_NAIVE_GAIN % at BOT, the feedback controller gain is approx 1/6 when consider the other terms
-            p1 = rlocus(G1, 40/6);
-            p2 = rlocus(G2, 40/6);
-    
-            p11 = rlocus(G1, 20/6);
-            p22 = rlocus(G2, 20/6);
+        
+        % BOT: J_i K_i/R_i = 0.2
+        % EOT: J_i K_i/R_i = 0.2337
+        if F_NAIVE_GAIN
+            p1 = rlocus(G1,  40*0.2337);
+            p2 = rlocus(G2,  40*0.2337);
+            p11 = rlocus(G1, 20*0.2337);
+            p22 = rlocus(G2, 20*0.2337);
         else
             p1 = rlocus(G1, 40);
             p2 = rlocus(G2, 40);
-    
             p11 = rlocus(G1, 20);
             p22 = rlocus(G2, 20);
         end
 
-        % plot(real(p1), imag(p1), 'rx', 'MarkerSize',10,'LineWidth',2)
-        % plot(real(p2), imag(p2), 'bx', 'MarkerSize',10,'LineWidth',2)
         plot(real(p11), imag(p11), 'rx', 'MarkerSize',10,'LineWidth',2)
-        plot(real(p22), imag(p22), 'bx',  'MarkerSize',10,'LineWidth',2)
+        plot(real(p22), imag(p22), 'bx', 'MarkerSize',10,'LineWidth',2)
 
         title(sprintf('%s \\rightarrow %s', vara(j), varb(i)), ...
-            'FontWeight','bold')
+            'FontWeight','bold','FontSize',16)
 
-        xlabel('Re','FontWeight','bold')
-        ylabel('Im','FontWeight','bold')
-        % set(gca,'FontWeight','bold')
+        xlabel('Re','FontWeight','bold','FontSize',14)
+        ylabel('Im','FontWeight','bold','FontSize',14)
+
+        ax = findall(gcf, 'Type', 'axes');
+        set(ax, 'FontSize', 14, 'LineWidth', 1.2, 'FontWeight', 'bold');
     end
 end
 
-legend({'BOT','EOT','BOT','EOT'})
+% set(gcf, 'Units', 'pixels');
+% set(gcf, 'Position', [100 100 1e3 1e3]);
 
-
-
-% gv = 40; l = 0:20:L_tot;
-% figure, plot(l, gv*f_J_i(f_R_i(l))./f_R_i(l)./K_i)
-% figure, plot(l, gv*f_J_o(f_R_o(l))./f_R_o(l)./K_o)
+legend({'BOT','EOT','BOT','EOT'}, 'FontSize', 12)
